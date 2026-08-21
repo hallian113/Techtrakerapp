@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "334044549110",
+    "project_id": "techtrackerapp-e5c15",
+    "storage_bucket": "techtrackerapp-e5c15.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:334044549110:android:d22cf71baf8e0e361641d7",
+        "android_client_info": {
+          "package_name": "com.example.flutter_application_1"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBbVeBkSF2s8NpIym-boZOzX0sPZ_nFvjM"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
