@@ -1,0 +1,48 @@
+{
+  "project_info": {
+    "project_number": "717418788693",
+    "project_id": "techtrackerapp-e7873",
+    "storage_bucket": "techtrackerapp-e7873.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:717418788693:android:5956c8ccabb33b30d0e1dc",
+        "android_client_info": {
+          "package_name": "com.cargent.techtracker"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBvjbQ6Fcn1uRIG53lqq-gGFIcQh5XUZD8"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:717418788693:android:fc055d6e5856867fd0e1dc",
+        "android_client_info": {
+          "package_name": "com.example.flutter_application_1"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBvjbQ6Fcn1uRIG53lqq-gGFIcQh5XUZD8"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
