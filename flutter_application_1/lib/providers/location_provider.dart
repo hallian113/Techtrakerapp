@@ -11,6 +11,7 @@ class LocationProvider extends ChangeNotifier {
   String? _currentAddress;
   String? _currentLocationName;
   bool _isTracking = false;
+  String? _currentSessionId;
   List<LocationModel> _locationHistory = [];
   int _totalTechs = 0;
   bool _isLoading = false;
@@ -21,6 +22,7 @@ class LocationProvider extends ChangeNotifier {
   String? get currentAddress => _currentAddress;
   String? get currentLocationName => _currentLocationName;
   bool get isTracking => _isTracking;
+  String? get currentSessionId => _currentSessionId;
   List<LocationModel> get locationHistory => _locationHistory;
   bool get isLoading => _isLoading;
   int get totalTechs => _totalTechs;
@@ -95,9 +97,12 @@ class LocationProvider extends ChangeNotifier {
   }
 
   // ✅ Start Tracking (Background)
-  Future<void> startTracking(String userId, String userName) async {
+  // ✅ Start Tracking (Background)
+  Future<void> startTracking(String userId, String userName,
+      {String? sessionId}) async {
     if (_isTracking) return;
 
+    _currentSessionId = sessionId;
     _isTracking = true;
     notifyListeners();
 
@@ -108,6 +113,7 @@ class LocationProvider extends ChangeNotifier {
   // ✅ Stop Tracking
   Future<void> stopTracking() async {
     _isTracking = false;
+    _currentSessionId = null;
     notifyListeners();
   }
 
@@ -141,6 +147,7 @@ class LocationProvider extends ChangeNotifier {
         speed: _currentPosition!.speed,
         accuracy: _currentPosition!.accuracy,
         isSynced: false,
+        sessionId: _currentSessionId,
       );
 
       // Save to local database
@@ -187,6 +194,11 @@ class LocationProvider extends ChangeNotifier {
 
   Future<List<LocationModel>> getLocationsForDay(String userId, DateTime date) {
     return _databaseService.getLocationsForDay(userId, date);
+  }
+
+  // ✅ Get Locations for a specific punch session (journey view)
+  Future<List<LocationModel>> getLocationsBySession(String sessionId) {
+    return _databaseService.getLocationsBySession(sessionId);
   }
 
   // ✅ Clear History

@@ -14,7 +14,8 @@ class AppConstants {
   static const String prefUserName = 'user_name';
   static const String prefUserRole = 'user_role';
   static const String prefIsLoggedIn = 'is_logged_in';
-
+  static const String prefIsPunchedIn = 'is_punched_in';
+  static const String prefSessionId = 'current_session_id';
   // Location Update Interval (in seconds)
   static const int locationUpdateInterval = 10;
 

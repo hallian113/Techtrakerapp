@@ -1,3 +1,5 @@
+// ignore_for_file: unused_element, unused_import
+import 'package:shimmer/shimmer.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:tracking_app/providers/auth_provider.dart';
@@ -9,6 +11,11 @@ import 'package:tracking_app/utils/helpers.dart';
 import 'package:tracking_app/providers/location_provider.dart';
 import 'package:tracking_app/models/attendance_model.dart';
 import 'package:tracking_app/models/location_model.dart';
+import 'package:flutter_map/flutter_map.dart';
+import 'package:latlong2/latlong.dart';
+import 'package:tracking_app/utils/constants.dart';
+import 'package:tracking_app/screens/location_journey_screen.dart';
+import 'package:tracking_app/utils/page_transitions.dart';
 
 class HistoryScreen extends StatefulWidget {
   const HistoryScreen({super.key});
@@ -27,60 +34,121 @@ class _HistoryScreenState extends State<HistoryScreen> {
         first.day == second.day;
   }
 
+  // ✅ Determine if a punch-in session is still ongoing, purely from data
+  // (not from the current device's local session state).
+  bool _isRecordStillOngoing(
+      AttendanceProvider attendanceProvider, AttendanceModel record) {
+    if (record.punchType != AppConstants.punchIn) return false;
+
+    final userRecords = attendanceProvider.attendanceHistory
+        .where((r) => r.userId == record.userId)
+        .toList()
+      ..sort((a, b) => a.timestamp.compareTo(b.timestamp));
+
+    if (userRecords.isEmpty) return false;
+
+    final latest = userRecords.last;
+    // Ongoing only if THIS record is the user's most recent record overall
+    // and it's still a punch-in (no punch-out after it yet).
+    return latest.id == record.id;
+  }
+
   Future<void> _showRecordDetails(
       BuildContext context, AttendanceModel record) async {
     final locationProvider =
         Provider.of<LocationProvider>(context, listen: false);
-    final locations = await locationProvider.getLocationsForDay(
-      record.userId,
-      record.timestamp,
-    );
+    final attendanceProvider =
+        Provider.of<AttendanceProvider>(context, listen: false);
+
+    final sessionId = record.sessionId ?? record.id;
+    List<LocationModel> locations = [];
+    try {
+      locations = await locationProvider.getLocationsBySession(sessionId);
+
+      // 🔄 Fallback for OLD records saved before sessionId tracking existed
+      if (locations.isEmpty && record.sessionId == null) {
+        locations = await _getFallbackLocationsForOldRecord(
+            attendanceProvider, locationProvider, record);
+      }
+    } catch (e) {
+      debugPrint('History details error: $e');
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error loading locations: $e')),
+        );
+      }
+    }
+
     if (!context.mounted) return;
 
-    showDialog<void>(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        backgroundColor: AppTheme.blackCard,
-        title: Text(
-          '${record.userName} - ${record.punchTypeDisplayName}',
-          style: const TextStyle(color: Colors.white, fontSize: 18),
+    final isLive = _isRecordStillOngoing(attendanceProvider, record);
+
+    Navigator.push(
+      context,
+      slideFadeRoute(
+        LocationJourneyScreen(
+          record: record,
+          locations: locations,
+          isLive: isLive,
         ),
-        content: SizedBox(
-          width: 420,
-          height: 360,
-          child: locations.isEmpty
-              ? const Center(
-                  child: Text(
-                    'No location records for this day',
-                    style: TextStyle(color: AppTheme.greyMedium),
-                  ),
-                )
-              : ListView(
-                  children: [
-                    _detailRow(
-                        'Punch time', Helpers.formatDateTime(record.timestamp)),
-                    _detailRow('Punch location',
-                        record.locationName ?? 'Unknown location'),
-                    _detailRow('Address', record.address ?? 'Unknown address'),
-                    const Divider(color: AppTheme.greyDark),
-                    const Text(
-                      'Location journey',
-                      style: TextStyle(
-                          color: AppTheme.gold, fontWeight: FontWeight.bold),
-                    ),
-                    const SizedBox(height: 8),
-                    ...locations.map(_locationRow),
-                  ],
-                ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext),
-            child: const Text('Close'),
-          ),
-        ],
       ),
     );
+  }
+
+  // 🔄 Best-effort location lookup for records saved BEFORE sessionId existed
+  Future<List<LocationModel>> _getFallbackLocationsForOldRecord(
+    AttendanceProvider attendanceProvider,
+    LocationProvider locationProvider,
+    AttendanceModel record,
+  ) async {
+    try {
+      final sameDayRecords = attendanceProvider.attendanceHistory
+          .where((r) =>
+              r.userId == record.userId &&
+              _sameDate(r.timestamp, record.timestamp))
+          .toList()
+        ..sort((a, b) => a.timestamp.compareTo(b.timestamp));
+
+      DateTime rangeStart;
+      DateTime rangeEnd;
+
+      if (record.punchType == AppConstants.punchIn) {
+        rangeStart = record.timestamp;
+        final matchingOut = sameDayRecords.firstWhere(
+          (r) =>
+              r.punchType == AppConstants.punchOut &&
+              r.timestamp.isAfter(record.timestamp),
+          orElse: () => record,
+        );
+        rangeEnd =
+            matchingOut == record ? DateTime.now() : matchingOut.timestamp;
+      } else {
+        rangeEnd = record.timestamp;
+        final matchingIn = sameDayRecords.lastWhere(
+          (r) =>
+              r.punchType == AppConstants.punchIn &&
+              r.timestamp.isBefore(record.timestamp),
+          orElse: () => record,
+        );
+        rangeStart = matchingIn == record
+            ? record.timestamp.subtract(const Duration(hours: 8))
+            : matchingIn.timestamp;
+      }
+
+      final dayLocations = await locationProvider.getLocationsForDay(
+          record.userId, record.timestamp);
+
+      final filtered = dayLocations
+          .where((loc) =>
+              !loc.timestamp.isBefore(rangeStart) &&
+              !loc.timestamp.isAfter(rangeEnd))
+          .toList();
+
+      filtered.sort((a, b) => a.timestamp.compareTo(b.timestamp));
+      return filtered;
+    } catch (e) {
+      return [];
+    }
   }
 
   Future<void> _deleteRecord(
@@ -137,6 +205,23 @@ class _HistoryScreenState extends State<HistoryScreen> {
       subtitle: Text(
         '${location.locationName ?? 'Unknown'}\n${location.address ?? location.locationString}',
         style: const TextStyle(color: AppTheme.greyMedium, fontSize: 12),
+      ),
+    );
+  }
+
+  Widget _shimmerCard() {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Shimmer.fromColors(
+        baseColor: AppTheme.blackCard,
+        highlightColor: AppTheme.blackLight,
+        child: Container(
+          height: 84,
+          decoration: BoxDecoration(
+            color: AppTheme.blackCard,
+            borderRadius: BorderRadius.circular(16),
+          ),
+        ),
       ),
     );
   }
@@ -257,11 +342,10 @@ class _HistoryScreenState extends State<HistoryScreen> {
               // 📋 History List
               Expanded(
                 child: _isLoading
-                    ? const Center(
-                        child: CircularProgressIndicator(
-                          valueColor:
-                              AlwaysStoppedAnimation<Color>(AppTheme.gold),
-                        ),
+                    ? ListView.builder(
+                        padding: const EdgeInsets.all(16),
+                        itemCount: 5,
+                        itemBuilder: (context, index) => _shimmerCard(),
                       )
                     : attendanceProvider.attendanceHistory
                             .where((record) =>

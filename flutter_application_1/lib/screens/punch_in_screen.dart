@@ -17,7 +17,61 @@ class PunchInScreen extends StatefulWidget {
 
 class _PunchInScreenState extends State<PunchInScreen> {
   final TextEditingController _noteController = TextEditingController();
+  final TextEditingController _customerController = TextEditingController();
   bool _isProcessing = false;
+
+  // 🛑 Google Play Policy: Prominent Disclosure Popup
+  Future<bool> _showLocationDisclosure() async {
+    return await showDialog<bool>(
+          context: context,
+          barrierDismissible: false, // User ko button dabana parega
+          builder: (BuildContext context) {
+            return AlertDialog(
+              backgroundColor: AppTheme.blackCard,
+              title: const Text(
+                'Location Access Required',
+                style: TextStyle(
+                    color: AppTheme.gold, fontWeight: FontWeight.bold),
+              ),
+              content: const SingleChildScrollView(
+                child: ListBody(
+                  children: <Widget>[
+                    Text(
+                      'This app collects location data to track your work route and attendance while you are on duty.',
+                      style: TextStyle(color: Colors.white70),
+                    ),
+                    SizedBox(height: 10),
+                    Text(
+                      'This data will be collected even when the app is closed or not in use, for the purpose of field staff attendance and live tracking.',
+                      style: TextStyle(color: Colors.white70),
+                    ),
+                  ],
+                ),
+              ),
+              actions: <Widget>[
+                TextButton(
+                  child: const Text('Deny',
+                      style: TextStyle(color: AppTheme.greyLight)),
+                  onPressed: () {
+                    Navigator.of(context).pop(false);
+                  },
+                ),
+                ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppTheme.gold,
+                    foregroundColor: AppTheme.black,
+                  ),
+                  child: const Text('Allow & Continue'),
+                  onPressed: () {
+                    Navigator.of(context).pop(true);
+                  },
+                ),
+              ],
+            );
+          },
+        ) ??
+        false;
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -154,7 +208,14 @@ class _PunchInScreenState extends State<PunchInScreen> {
                 ),
 
                 const SizedBox(height: 20),
+                CustomTextField(
+                  controller: _customerController,
+                  label: 'Customer / Job (Optional)',
+                  hint: 'e.g. NV200, Enterprise Rent a Car',
+                  prefixIcon: Icons.business,
+                ),
 
+                const SizedBox(height: 16),
                 // 📝 Note Field
                 CustomTextField(
                   controller: _noteController,
@@ -179,6 +240,14 @@ class _PunchInScreenState extends State<PunchInScreen> {
                   onPressed: _isProcessing
                       ? null
                       : () async {
+                          // 🛑 1. Google Play Policy Check (Agar Punch In ho raha hai toh popup dikhao)
+                          if (!attendanceProvider.isPunchedIn) {
+                            bool accepted = await _showLocationDisclosure();
+                            if (!accepted) {
+                              return; // Agar deny kiya toh aage nahi barhna
+                            }
+                          }
+
                           if (locationProvider.currentPosition == null) {
                             Fluttertoast.showToast(
                               msg: '📍 Please get location first',
@@ -228,22 +297,37 @@ class _PunchInScreenState extends State<PunchInScreen> {
                               note: _noteController.text.isNotEmpty
                                   ? _noteController.text
                                   : null,
+                              customerName: _customerController.text.isNotEmpty
+                                  ? _customerController.text
+                                  : null,
                             );
                           }
 
                           if (success) {
+                            if (attendanceProvider.isPunchedIn) {
+                              await locationProvider.startTracking(
+                                authProvider.userId,
+                                authProvider.userName,
+                                sessionId: attendanceProvider.currentSessionId,
+                              );
+                            } else {
+                              await locationProvider.stopTracking();
+                            }
                             await locationProvider.saveCurrentLocation(
                               authProvider.userId,
                               authProvider.userName,
                             );
                           }
 
-                          setState(() {
-                            _isProcessing = false;
-                          });
+                          if (mounted) {
+                            setState(() {
+                              _isProcessing = false;
+                            });
+                          }
 
                           if (success && mounted) {
                             _noteController.clear();
+                            _customerController.clear();
                             Navigator.pop(context);
                           }
                         },

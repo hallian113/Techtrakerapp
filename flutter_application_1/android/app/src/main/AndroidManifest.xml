@@ -7,9 +7,16 @@
     <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
 
     <application
-        android:label="TechTracker"
+                android:label="Cargent Mobile"
         android:name="${applicationName}"
-        android:icon="@mipmap/ic_launcher">
+        android:icon="@mipmap/launcher_icon">
+        
+        <!-- 🔴 YEH SERVICE ADD KI HAI BACKGROUND TRACKING KE LIYE (Google Play Policy) -->
+        <service
+            android:name="dev.fluttercommunity.plus.flutter_background_service.FlutterBackgroundService"
+            android:foregroundServiceType="location"
+            android:exported="false" />
+
         <activity
             android:name=".MainActivity"
             android:exported="true"

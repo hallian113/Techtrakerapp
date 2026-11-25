@@ -17,6 +17,56 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   int _selectedIndex = 0;
+  bool _sessionRestored = false;
+  AuthProvider? _authProviderRef;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      _authProviderRef = Provider.of<AuthProvider>(context, listen: false);
+      _tryRestoreSession();
+      _authProviderRef!.addListener(_tryRestoreSession);
+    });
+  }
+
+  Future<void> _tryRestoreSession() async {
+    if (_sessionRestored) return;
+    final authProvider = _authProviderRef;
+    if (authProvider == null || authProvider.userId.isEmpty) return;
+
+    _sessionRestored = true;
+    authProvider.removeListener(_tryRestoreSession);
+    if (!mounted) return;
+
+    final attendanceProvider =
+        Provider.of<AttendanceProvider>(context, listen: false);
+    final locationProvider =
+        Provider.of<LocationProvider>(context, listen: false);
+
+    await attendanceProvider.restoreSession(authProvider.userId);
+
+    Fluttertoast.showToast(
+      msg: attendanceProvider.isPunchedIn
+          ? '✅ Session restored: Punched In'
+          : 'ℹ️ No active session found',
+    );
+
+    if (attendanceProvider.isPunchedIn) {
+      await locationProvider.startTracking(
+        authProvider.userId,
+        authProvider.userName,
+        sessionId: attendanceProvider.currentSessionId,
+      );
+    }
+  }
+
+  @override
+  void dispose() {
+    _authProviderRef?.removeListener(_tryRestoreSession);
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -134,6 +184,39 @@ class _HomeScreenState extends State<HomeScreen> {
         ),
       ),
     );
+  }
+
+  Future<bool> _showLocationDisclosureDialog(BuildContext context) async {
+    final result = await showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: AppTheme.black,
+        title: const Text(
+          'Location Access',
+          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+        ),
+        content: const Text(
+          'TechTracker collects your location, including in the background '
+          'when the app is closed or not in use, to enable live tracking of '
+          'field technicians and accurate attendance records. This data is '
+          'used only for attendance and service tracking purposes and is '
+          'not shared with third parties.',
+          style: TextStyle(color: AppTheme.greyLight),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('Deny', style: TextStyle(color: Colors.grey)),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: const Text('Allow', style: TextStyle(color: AppTheme.gold)),
+          ),
+        ],
+      ),
+    );
+    return result ?? false;
   }
 
   Widget _buildStatusCard(AttendanceProvider attendanceProvider) {
@@ -322,6 +405,8 @@ class _HomeScreenState extends State<HomeScreen> {
             onPressed: locationProvider.isLoading
                 ? null
                 : () async {
+                    bool allowed = await _showLocationDisclosureDialog(context);
+                    if (!allowed) return;
                     bool success = await locationProvider.getCurrentLocation();
                     if (success && mounted) {
                       await locationProvider.saveCurrentLocation(
@@ -329,7 +414,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         authProvider.userName,
                       );
                       Fluttertoast.showToast(
-                        msg: '📍 Location updated',
+                        msg: 'ðŸ“ Location updated',
                         backgroundColor: AppTheme.gold,
                         textColor: AppTheme.black,
                       );

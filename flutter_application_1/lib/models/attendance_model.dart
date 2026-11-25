@@ -1,3 +1,5 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
+
 class AttendanceModel {
   final String id;
   final String userId;
@@ -10,7 +12,8 @@ class AttendanceModel {
   final String? address;
   final bool isSynced;
   final String? note;
-
+  final String? sessionId;
+  final String? customerName;
   AttendanceModel({
     required this.id,
     required this.userId,
@@ -23,6 +26,8 @@ class AttendanceModel {
     this.address,
     this.isSynced = true,
     this.note,
+    this.sessionId,
+    this.customerName,
   });
 
   // 📥 From JSON (Firestore)
@@ -39,6 +44,8 @@ class AttendanceModel {
       address: json['address'],
       isSynced: json['isSynced'] ?? true,
       note: json['note'],
+      sessionId: json['sessionId'],
+      customerName: json['customerName'],
     );
   }
 
@@ -48,13 +55,15 @@ class AttendanceModel {
       'userId': userId,
       'userName': userName,
       'punchType': punchType,
-      'timestamp': timestamp,
+      'timestamp': FieldValue.serverTimestamp(),
       'latitude': latitude,
       'longitude': longitude,
       'locationName': locationName,
       'address': address,
       'isSynced': isSynced,
       'note': note,
+      'sessionId': sessionId,
+      'customerName': customerName,
     };
   }
 
@@ -71,6 +80,8 @@ class AttendanceModel {
     String? address,
     bool? isSynced,
     String? note,
+    String? sessionId,
+    String? customerName,
   }) {
     return AttendanceModel(
       id: id ?? this.id,
@@ -84,6 +95,8 @@ class AttendanceModel {
       address: address ?? this.address,
       isSynced: isSynced ?? this.isSynced,
       note: note ?? this.note,
+      sessionId: sessionId ?? this.sessionId,
+      customerName: customerName ?? this.customerName,
     );
   }
 

@@ -71,6 +71,17 @@ class DatabaseService {
     }
   }
 
+  // ✅ Deactivate a user (soft-delete, keeps records intact)
+  Future<void> deactivateUser(String userId) async {
+    try {
+      await _firestore
+          .collection(AppConstants.usersCollection)
+          .doc(userId)
+          .update({'isActive': false});
+    } catch (e) {
+      throw Exception('Failed to remove user: $e');
+    }
+  }
   // ==================== ATTENDANCE METHODS ====================
 
   // ✅ Save Attendance
@@ -175,6 +186,65 @@ class DatabaseService {
     }
   }
 
+  // ✅ Get All Attendance by Date (for Admin - all techs on a specific date)
+  Future<List<AttendanceModel>> getAllAttendanceByDate(DateTime date) async {
+    try {
+      DateTime startOfDay = DateTime(date.year, date.month, date.day);
+      DateTime endOfDay = DateTime(date.year, date.month, date.day, 23, 59, 59);
+
+      QuerySnapshot snapshot = await _firestore
+          .collection(AppConstants.attendanceCollection)
+          .where('timestamp', isGreaterThanOrEqualTo: startOfDay)
+          .where('timestamp', isLessThanOrEqualTo: endOfDay)
+          .orderBy('timestamp', descending: false)
+          .get();
+
+      return snapshot.docs.map((doc) {
+        return AttendanceModel.fromJson(
+            doc.data() as Map<String, dynamic>, doc.id);
+      }).toList();
+    } catch (e) {
+      throw Exception('Failed to get attendance by date: $e');
+    }
+  }
+
+  // ✅ Get All Attendance in a Date Range (for Admin - Week / Pay Period totals)
+  Future<List<AttendanceModel>> getAllAttendanceInRange(
+      DateTime start, DateTime end) async {
+    try {
+      QuerySnapshot snapshot = await _firestore
+          .collection(AppConstants.attendanceCollection)
+          .where('timestamp', isGreaterThanOrEqualTo: start)
+          .where('timestamp', isLessThanOrEqualTo: end)
+          .orderBy('timestamp', descending: false)
+          .get();
+
+      return snapshot.docs.map((doc) {
+        return AttendanceModel.fromJson(
+            doc.data() as Map<String, dynamic>, doc.id);
+      }).toList();
+    } catch (e) {
+      throw Exception('Failed to get attendance in range: $e');
+    }
+  }
+
+  // ✅ Get Locations for a specific punch session (for map journey view)
+  Future<List<LocationModel>> getLocationsBySession(String sessionId) async {
+    try {
+      QuerySnapshot snapshot = await _firestore
+          .collection(AppConstants.locationsCollection)
+          .where('sessionId', isEqualTo: sessionId)
+          .orderBy('timestamp', descending: false)
+          .get();
+
+      return snapshot.docs.map((doc) {
+        return LocationModel.fromJson(
+            doc.data() as Map<String, dynamic>, doc.id);
+      }).toList();
+    } catch (e) {
+      throw Exception('Failed to get session locations: $e');
+    }
+  }
   // ==================== LOCATION METHODS ====================
 
   // ✅ Save Location

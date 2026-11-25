@@ -1,18 +1,30 @@
 // ignore_for_file: unused_import
 
 import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:timezone/timezone.dart' as tz;
 
 class TimeService {
-  // ✅ Get Trusted Time (Uses device time for now)
+  // 🇨🇦 Convert any DateTime to Canadian (Toronto) time for display
+  DateTime _toCanadian(DateTime dateTime) {
+    try {
+      final toronto = tz.getLocation('America/Toronto');
+      return tz.TZDateTime.from(dateTime, toronto);
+    } catch (e) {
+      return dateTime;
+    }
+  }
+
+  // ✅ Get Trusted Time (device time — this stays as-is, it's the actual
+  // instant recorded; only DISPLAY is converted to Canadian time)
   Future<DateTime> getTrustedTime() async {
-    // Web ya Mobile dono par device time use karein
     return DateTime.now();
   }
 
   // ✅ Format Time
   String formatTime(DateTime time) {
-    int hour = time.hour;
-    int minute = time.minute;
+    final t = _toCanadian(time);
+    int hour = t.hour;
+    int minute = t.minute;
     String ampm = hour >= 12 ? 'PM' : 'AM';
     int hour12 = hour > 12 ? hour - 12 : (hour == 0 ? 12 : hour);
     return '$hour12:${minute.toString().padLeft(2, '0')} $ampm';
@@ -20,7 +32,8 @@ class TimeService {
 
   // ✅ Format Date
   String formatDate(DateTime date) {
-    return '${date.day}/${date.month}/${date.year}';
+    final d = _toCanadian(date);
+    return '${d.day}/${d.month}/${d.year}';
   }
 
   // ✅ Format Full DateTime
@@ -36,12 +49,11 @@ class TimeService {
     return '$hours h ${minutes}m';
   }
 
-  // ✅ Check if Time is Today
+  // ✅ Check if Time is Today (compares in Canadian calendar day)
   bool isToday(DateTime date) {
-    DateTime now = DateTime.now();
-    return date.year == now.year &&
-        date.month == now.month &&
-        date.day == now.day;
+    final d = _toCanadian(date);
+    final now = _toCanadian(DateTime.now());
+    return d.year == now.year && d.month == now.month && d.day == now.day;
   }
 
   // ✅ Get Start of Day

@@ -5,6 +5,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:tracking_app/utils/constants.dart';
 import 'package:tracking_app/models/user_model.dart';
 import 'package:fluttertoast/fluttertoast.dart';
+import 'package:tracking_app/services/notification_service.dart';
 
 class AuthProvider extends ChangeNotifier {
   final FirebaseAuth _auth = FirebaseAuth.instance;
@@ -59,6 +60,7 @@ class AuthProvider extends ChangeNotifier {
           return false;
         }
         await _saveToPreferences();
+        await NotificationService().saveTokenForUser(_userId);
         Fluttertoast.showToast(
           msg: 'Welcome back! 🥇',
           backgroundColor: Colors.green,

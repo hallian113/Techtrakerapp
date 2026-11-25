@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:tracking_app/utils/theme.dart';
+import 'package:flutter/services.dart';
 
 class CustomButton extends StatelessWidget {
   final String text;
@@ -34,7 +35,14 @@ class CustomButton extends StatelessWidget {
       height: height ?? 56,
       child: isOutlined
           ? OutlinedButton(
-              onPressed: isLoading ? null : onPressed,
+              onPressed: isLoading
+                  ? null
+                  : onPressed == null
+                      ? null
+                      : () {
+                          HapticFeedback.lightImpact();
+                          onPressed!();
+                        },
               style: OutlinedButton.styleFrom(
                 foregroundColor: textColor ?? AppTheme.gold,
                 side: BorderSide(
@@ -49,7 +57,14 @@ class CustomButton extends StatelessWidget {
               child: _buildChild(),
             )
           : ElevatedButton(
-              onPressed: isLoading ? null : onPressed,
+              onPressed: isLoading
+                  ? null
+                  : onPressed == null
+                      ? null
+                      : () {
+                          HapticFeedback.lightImpact();
+                          onPressed!();
+                        },
               style: ElevatedButton.styleFrom(
                 backgroundColor: backgroundColor ?? AppTheme.gold,
                 foregroundColor: textColor ?? AppTheme.black,
